@@ -1,0 +1,22 @@
+services:
+  nexabudget-gocardless-integrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexabudget-gocardless-integrator
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      GOCARDLESS_SECRET_ID: ${GOCARDLESS_SECRET_ID}
+      GOCARDLESS_SECRET_KEY: ${GOCARDLESS_SECRET_KEY}
+      REDIRECT_PATH: ${REDIRECT_PATH}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    healthcheck:
+      test: ["CMD", "node", "-e", "import('http').then(http => http.post('http://localhost:3000/status', r => process.exit(r.statusCode === 200 ? 0 : 1)))"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
