@@ -62,8 +62,13 @@ The service is built with:
 
 Returns service health status.
 
+### Get Bank List
+`POST /get-banks Body: { country: string }`
+
+Retrieves a list of supported banks for a given country.
+
 ### Create Bank Link
-`POST /link Body: { institutionId: string }`
+`POST /create-web-token Body: { institutionId: string }`
 
 Initiates the OAuth flow to connect a bank account.
 
@@ -73,7 +78,7 @@ Initiates the OAuth flow to connect a bank account.
 Retrieves all accounts for a given requisition.
 
 ### Fetch Transactions
-`POST /transactions Body: { requisitionId: string, accountId: string, startDate: string }`
+`POST /transactions Body: { requisitionId: string, accountId: string, startDate: string, endDate: string }`
 
 Fetches and normalizes transactions for a specific account.
 
