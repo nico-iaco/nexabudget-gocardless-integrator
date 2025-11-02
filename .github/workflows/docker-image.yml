@@ -6,7 +6,7 @@ on:
       - 'src/**'
       - 'package.json'
       - 'yarn.lock'
-      - 'package-lock.json'ì
+      - 'package-lock.json'
       - 'Dockerfile'
       - '.github/workflows/docker-image.yml'
 
