@@ -17,7 +17,7 @@ const app = express();
 
 app.use(express.json());
 
-app.post('/status', async (req, res) => {
+app.get('/status', async (req, res) => {
   res.send({
     status: 'ok',
     data: {
