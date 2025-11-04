@@ -308,7 +308,7 @@ export const goCardlessService = {
    * @throws {ServiceError}
    * @returns {Promise<{requisitionId, link}>}
    */
-  createRequisition: async ({ institutionId, host }) => {
+  createRequisition: async ({ institutionId, localAccountId }) => {
     await goCardlessService.setToken();
 
     const institution = await goCardlessService.getInstitution(institutionId);
@@ -316,7 +316,7 @@ export const goCardlessService = {
     let response;
     try {
       response = await client.initSession({
-        redirectUrl: host + process.env.REDIRECT_PATH,
+        redirectUrl: process.env.REDIRECT_PATH + "/" + localAccountId,
         institutionId,
         referenceId: uuid.v4(),
         accessValidForDays: institution.max_access_valid_for_days,
