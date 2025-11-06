@@ -69,5 +69,25 @@ describe('WidibaWidiitmm', () => {
             expect(normalizedTransaction.date).toEqual('2025-06-02');
         });
 
+        it('extracts payeeName from SDD direct debit', () => {
+            const transaction = {
+                transactionAmount: { amount: '-200.00', currency: 'EUR' },
+                remittanceInformationUnstructured:
+                    'Causale: Addebito Diretto Sdd - Descrizione: Addebito Sdd N. XXXXX a Favore Mfm Investment Ltd Italian Branch Codice Mandato 34336 Importo 200,00 Commissioni 0,00 Spese 0,00 Ni25XXXX',
+                bookingDate: '2025-06-02',
+            };
+
+            const normalizedTransaction = WidibaWidiitmm.normalizeTransaction(
+                transaction,
+                true,
+            );
+
+            expect(normalizedTransaction.payeeName).toEqual(
+                'Addebito Sdd N. XXXXX a Favore Mfm Investment Ltd Italian Branch'
+            );
+            expect(normalizedTransaction.date).toEqual('2025-06-02');
+        });
+
+
     });
 });

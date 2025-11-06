@@ -9,6 +9,22 @@ export default {
         const remittance = transaction.remittanceInformationUnstructured;
 
         if (remittance) {
+            // Controlla se c'è un addebito SDD
+            const sddMatch = remittance.match(/Addebito Sdd N\.\s+(\S+)\s+a Favore\s+(.+?)\s+Codice Mandato/i);
+            if (sddMatch) {
+                const date =
+                    transaction.bookingDate ||
+                    transaction.bookingDateTime ||
+                    transaction.valueDate ||
+                    transaction.valueDateTime;
+
+                return {
+                    ...transaction,
+                    payeeName: `Addebito Sdd N. ${sddMatch[1]} a Favore ${sddMatch[2].trim()}`,
+                    date: d.format(d.parseISO(date), 'yyyy-MM-dd'),
+                };
+            }
+
             // Controlla se c'è "DA" seguito dal nome nel contesto BANCOMAT Pay
             const bpayMatch = remittance.match(/RICEZIONE DENARO CON BANCOMAT PAY DA ([^D]+?)(?=\s+DATA:)/i);
             if (bpayMatch) {
