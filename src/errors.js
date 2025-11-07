@@ -18,14 +18,36 @@ export class AccountNotLinkedToRequisition extends Error {
 export class GenericGoCardlessError extends Error {
   constructor(data = {}) {
     super('GoCardless returned error');
-    this.details = data;
+      // Ottimizzazione memoria: salva solo i dati essenziali
+      if (data?.response) {
+          this.details = {
+              status: data.response.status,
+              statusText: data.response.statusText,
+              message: data.message
+          };
+      } else {
+          this.details = {message: data.message || 'Unknown error'};
+      }
   }
 }
 
 export class GoCardlessClientError extends Error {
   constructor(message, details) {
     super(message);
-    this.details = details;
+      // Ottimizzazione memoria: salva solo i dati essenziali invece dell'intero oggetto response
+      if (details?.response) {
+          this.details = {
+              status: details.response.status,
+              statusText: details.response.statusText,
+              headers: details.response.headers,
+              // Limita la dimensione dei dati salvati
+              data: details.response.data ?
+                  (typeof details.response.data === 'string' ? details.response.data.substring(0, 500) : details.response.data)
+                  : undefined
+          };
+      } else {
+          this.details = details;
+      }
   }
 }
 

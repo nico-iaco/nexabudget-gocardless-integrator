@@ -1,6 +1,5 @@
 import {isAxiosError} from 'axios';
 import express from 'express';
-import {inspect} from 'util';
 
 import {goCardlessService} from './services/gocardless-service.js';
 import {
@@ -14,7 +13,8 @@ import {sha256String} from './util/hash.js';
 
 const app = express();
 
-app.use(express.json({limit: '5mb'}));
+// Limita payload a 1mb per prevenire allocazioni eccessive di memoria
+app.use(express.json({limit: '1mb'}));
 
 // Disabilita header X-Powered-By per sicurezza
 app.disable('x-powered-by');
@@ -232,24 +232,21 @@ app.post(
                     });
                     break;
                 case error instanceof GenericGoCardlessError:
-                    console.log('Something went wrong', inspect(error, {depth: null}));
+                    console.error('GoCardless Error:', error.message || 'Unknown error');
                     sendErrorResponse({
                         error_type: 'SYNC_ERROR',
                         error_code: 'NORDIGEN_ERROR',
                     });
                     break;
                 case isAxiosError(error):
-                    console.log(
-                        'Something went wrong',
-                        inspect(error.response?.data || error, {depth: null}),
-                    );
+                    console.error('Axios Error:', error.response?.status, error.response?.statusText || error.message);
                     sendErrorResponse({
                         error_type: 'SYNC_ERROR',
                         error_code: 'NORDIGEN_ERROR',
                     });
                     break;
                 default:
-                    console.log('Something went wrong', inspect(error, {depth: null}));
+                    console.error('Unknown Error:', error.message || 'Something went wrong');
                     sendErrorResponse({
                         error_type: 'UNKNOWN',
                         error_code: 'UNKNOWN',
