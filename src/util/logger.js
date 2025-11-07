@@ -65,6 +65,10 @@ const logger = winston.createLogger({
  * Logger middleware per Express che aggiunge context a ogni richiesta
  */
 export const requestLogger = (req, res, next) => {
+    // Escludi endpoint /status dai log (health checks)
+    const excludedPaths = ['/status'];
+    const shouldLog = !excludedPaths.includes(req.path);
+
     const requestId = req.headers['x-request-id'] ||
         req.headers['x-correlation-id'] ||
         `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -80,6 +84,7 @@ export const requestLogger = (req, res, next) => {
         ip: req.ip || req.connection.remoteAddress,
     });
 
+    if (shouldLog) {
     const startTime = Date.now();
 
     // Log della richiesta in ingresso
@@ -100,6 +105,7 @@ export const requestLogger = (req, res, next) => {
             duration: `${duration}ms`,
         });
     });
+    }
 
     next();
 };

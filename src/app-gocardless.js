@@ -21,13 +21,10 @@ app.disable('x-powered-by');
 app.use(requestLogger);
 
 app.get('/status', async (req, res) => {
-    const configured = goCardlessService.isConfigured();
-    req.logger.debug('Status check', {configured});
-
     res.send({
         status: 'ok',
         data: {
-            configured,
+            configured: goCardlessService.isConfigured(),
         },
     });
 });
