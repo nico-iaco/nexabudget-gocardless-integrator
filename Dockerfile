@@ -44,5 +44,8 @@ USER nodejs
 # Esponi la porta
 EXPOSE 3000
 
-# Avvia l'applicazione dal file JavaScript
-CMD ["node", "src/app-gocardless.js"]
+# Avvia l'applicazione con limiti di memoria ottimizzati per container con 512MB
+# --max-old-space-size=384 limita l'heap a 384MB (lasciando ~128MB per il resto del sistema)
+# --optimize-for-size riduce l'utilizzo di memoria
+# --gc-interval=100 esegue il garbage collector più frequentemente
+CMD ["node", "--max-old-space-size=384", "--optimize-for-size", "--gc-interval=100", "src/app-gocardless.js"]

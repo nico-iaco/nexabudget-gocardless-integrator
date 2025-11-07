@@ -5,8 +5,8 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "node src/app-gocardless.js",
-    "dev": "nodemon src/app-gocardless.js",
+    "start": "node --max-old-space-size=384 --optimize-for-size src/app-gocardless.js",
+    "dev": "nodemon --exec 'node --max-old-space-size=384 --optimize-for-size' src/app-gocardless.js",
     "test": "vitest"
   },
   "dependencies": {

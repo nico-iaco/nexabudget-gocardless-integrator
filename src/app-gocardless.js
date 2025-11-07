@@ -14,7 +14,10 @@ import {sha256String} from './util/hash.js';
 
 const app = express();
 
-app.use(express.json());
+app.use(express.json({limit: '5mb'}));
+
+// Disabilita header X-Powered-By per sicurezza
+app.disable('x-powered-by');
 
 app.get('/status', async (req, res) => {
     res.send({
