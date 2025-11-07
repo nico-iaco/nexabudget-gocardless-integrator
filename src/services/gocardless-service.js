@@ -1,22 +1,24 @@
-import BankFactory, { BANKS_WITH_LIMITED_HISTORY } from '../bank-factory.js';
+import BankFactory, {BANKS_WITH_LIMITED_HISTORY} from '../bank-factory.js';
 import {
-  AccessDeniedError,
-  AccountNotLinkedToRequisition,
-  GenericGoCardlessError,
-  InvalidInputDataError,
-  InvalidGoCardlessTokenError,
-  NotFoundError,
-  RateLimitError,
-  ResourceSuspended,
-  RequisitionNotLinked,
-  ServiceError,
-  UnknownError,
+    AccessDeniedError,
+    AccountNotLinkedToRequisition,
+    GenericGoCardlessError,
+    InvalidGoCardlessTokenError,
+    InvalidInputDataError,
+    NotFoundError,
+    RateLimitError,
+    RequisitionNotLinked,
+    ResourceSuspended,
+    ServiceError,
+    UnknownError,
 } from '../errors.js';
 import * as nordigenNode from 'nordigen-node';
 import * as uuid from 'uuid';
 import jwt from 'jws';
+import {createContextLogger} from '../util/logger.js';
 
 const GoCardlessClient = nordigenNode.default;
+const logger = createContextLogger('GoCardlessService');
 
 const clients = new Map();
 
@@ -37,6 +39,13 @@ const getGocardlessClient = () => {
 
 export const handleGoCardlessError = (error) => {
   const status = error?.response?.status;
+
+    logger.error('GoCardless API error', {
+        status,
+        statusText: error?.response?.statusText,
+        data: error?.response?.data,
+        url: error?.config?.url,
+    });
 
   switch (status) {
     case 400:
@@ -90,8 +99,11 @@ export const goCardlessService = {
       // Generate new access token. Token is valid for 24 hours
       // Note: access_token is automatically injected to other requests after you successfully obtain it
       try {
+          logger.debug('Generating new GoCardless token');
         await client.generateToken();
+          logger.info('GoCardless token generated successfully');
       } catch (error) {
+          logger.error('Failed to generate GoCardless token', {error: error.message});
         handleGoCardlessError(error);
       }
     }

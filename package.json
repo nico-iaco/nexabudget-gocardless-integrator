@@ -15,7 +15,8 @@
     "express": "^5.1.0",
     "jws": "^4.0.0",
     "nordigen-node": "^1.4.1",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "winston": "^3.18.3"
   },
   "devDependencies": {
     "@types/jws": "^3.2.11",

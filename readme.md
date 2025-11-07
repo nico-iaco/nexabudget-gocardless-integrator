@@ -82,6 +82,40 @@ Retrieves all accounts for a given requisition.
 
 Fetches and normalizes transactions for a specific account.
 
+## Logging
+
+This service includes a professional logging system built with Winston, optimized for both local development and
+production (Kubernetes) environments.
+
+### Features
+
+- 🎨 **Colorized output** in development for easy reading
+- 📝 **JSON structured logs** in production for log aggregators
+- 🔍 **Request tracking** with automatic request IDs
+- ⚡ **Performance monitoring** with automatic duration tracking
+- 🐛 **Detailed error logging** with stack traces
+
+### Configuration
+
+Configure logging via environment variables:
+
+```bash
+NODE_ENV=production    # development | production | test
+LOG_LEVEL=info        # error | warn | info | debug
+```
+
+### Quick Start
+
+View logs in Kubernetes:
+
+```bash
+# Real-time logs
+kubectl logs -f deployment/nexabudget-gocardless-integrator
+
+# Filter errors only (with jq)
+kubectl logs deployment/nexabudget-gocardless-integrator | jq 'select(.level=="error")'
+```
+
 ## Installation
 
 ### Prerequisites

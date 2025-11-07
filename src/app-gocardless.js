@@ -10,20 +10,24 @@ import {
 } from './errors.js';
 import {handleError} from './util/handle-error.js';
 import {sha256String} from './util/hash.js';
+import logger, {requestLogger} from './util/logger.js';
 
 const app = express();
 
-// Limita payload a 1mb per prevenire allocazioni eccessive di memoria
-app.use(express.json({limit: '1mb'}));
-
-// Disabilita header X-Powered-By per sicurezza
+app.use(express.json({limit: '5mb'}));
 app.disable('x-powered-by');
 
+// Aggiungi il middleware di logging per tracciare tutte le richieste
+app.use(requestLogger);
+
 app.get('/status', async (req, res) => {
+    const configured = goCardlessService.isConfigured();
+    req.logger.debug('Status check', {configured});
+
     res.send({
         status: 'ok',
         data: {
-            configured: goCardlessService.isConfigured(),
+            configured,
         },
     });
 });
@@ -33,10 +37,14 @@ app.post(
     handleError(async (req, res) => {
         const {institutionId, localAccountId} = req.body;
 
+        req.logger.info('Creating web token', {institutionId, localAccountId});
+
         const {link, requisitionId} = await goCardlessService.createRequisition({
             institutionId,
             localAccountId,
         });
+
+        req.logger.info('Web token created successfully', {requisitionId});
 
         res.send({
             status: 'ok',
@@ -53,9 +61,16 @@ app.post(
     handleError(async (req, res) => {
         const {requisitionId} = req.body;
 
+        req.logger.info('Fetching accounts for requisition', {requisitionId});
+
         try {
             const {requisition, accounts} =
                 await goCardlessService.getRequisitionWithAccounts(requisitionId);
+
+            req.logger.info('Accounts fetched successfully', {
+                requisitionId,
+                accountCount: accounts.length
+            });
 
             res.send({
                 status: 'ok',
@@ -72,6 +87,11 @@ app.post(
             });
         } catch (error) {
             if (error instanceof RequisitionNotLinked) {
+                req.logger.warn('Requisition not linked', {
+                    requisitionId,
+                    requisitionStatus: error.details.requisitionStatus
+                });
+
                 res.send({
                     status: 'ok',
                     requisitionStatus: error.details.requisitionStatus,
@@ -88,8 +108,12 @@ app.post(
     handleError(async (req, res) => {
         let {country, showDemo = false} = req.body;
 
+        req.logger.info('Fetching banks', {country, showDemo});
+
         await goCardlessService.setToken();
         const data = await goCardlessService.getInstitutions(country);
+
+        req.logger.debug('Banks fetched', {country, count: data.length});
 
         res.send({
             status: 'ok',
@@ -111,13 +135,17 @@ app.post(
     handleError(async (req, res) => {
         let {requisitionId} = req.body;
 
+        req.logger.info('Removing account', {requisitionId});
+
         const data = await goCardlessService.deleteRequisition(requisitionId);
         if (data.summary === 'Requisition deleted') {
+            req.logger.info('Account removed successfully', {requisitionId});
             res.send({
                 status: 'ok',
                 data,
             });
         } else {
+            req.logger.warn('Failed to remove account', {requisitionId, data});
             res.send({
                 status: 'error',
                 data: {
@@ -140,6 +168,14 @@ app.post(
             includeBalance = true,
         } = req.body;
 
+        req.logger.info('Fetching transactions', {
+            requisitionId,
+            accountId,
+            startDate,
+            endDate,
+            includeBalance
+        });
+
         try {
             if (includeBalance) {
                 const {
@@ -153,6 +189,14 @@ app.post(
                     startDate,
                     endDate,
                 );
+
+                req.logger.info('Transactions fetched successfully', {
+                    requisitionId,
+                    accountId,
+                    bookedCount: booked.length,
+                    pendingCount: pending.length,
+                    totalCount: all.length,
+                });
 
                 res.send({
                     status: 'ok',
@@ -178,6 +222,14 @@ app.post(
                     endDate,
                 );
 
+                req.logger.info('Transactions fetched successfully', {
+                    requisitionId,
+                    accountId,
+                    bookedCount: booked.length,
+                    pendingCount: pending.length,
+                    totalCount: all.length,
+                });
+
                 res.send({
                     status: 'ok',
                     data: {
@@ -199,11 +251,21 @@ app.post(
                 ),
             );
 
-            const sendErrorResponse = (data) =>
+            const sendErrorResponse = (data) => {
+                req.logger.error('Transaction fetch failed', {
+                    requisitionId,
+                    accountId,
+                    error_type: data.error_type,
+                    error_code: data.error_code,
+                    reason: data.reason,
+                    rateLimitHeaders,
+                });
+
                 res.send({
                     status: 'ok',
                     data: {...data, details: error.details, rateLimitHeaders},
                 });
+            };
 
             switch (true) {
                 case error instanceof RequisitionNotLinked:
@@ -232,21 +294,31 @@ app.post(
                     });
                     break;
                 case error instanceof GenericGoCardlessError:
-                    console.error('GoCardless Error:', error.message || 'Unknown error');
+                    req.logger.error('GoCardless Error', {
+                        message: error.message || 'Unknown error',
+                        details: error.details,
+                    });
                     sendErrorResponse({
                         error_type: 'SYNC_ERROR',
                         error_code: 'NORDIGEN_ERROR',
                     });
                     break;
                 case isAxiosError(error):
-                    console.error('Axios Error:', error.response?.status, error.response?.statusText || error.message);
+                    req.logger.error('Axios Error', {
+                        status: error.response?.status,
+                        statusText: error.response?.statusText,
+                        message: error.message,
+                    });
                     sendErrorResponse({
                         error_type: 'SYNC_ERROR',
                         error_code: 'NORDIGEN_ERROR',
                     });
                     break;
                 default:
-                    console.error('Unknown Error:', error.message || 'Something went wrong');
+                    req.logger.error('Unknown Error', {
+                        message: error.message || 'Something went wrong',
+                        stack: error.stack,
+                    });
                     sendErrorResponse({
                         error_type: 'UNKNOWN',
                         error_code: 'UNKNOWN',
@@ -259,5 +331,13 @@ app.post(
 );
 
 app.listen(process.env.PORT || 3000, () => {
-    console.log('Nexabudget gocardless integrator listening on port 3000!')
+    const port = process.env.PORT || 3000;
+    const env = process.env.NODE_ENV || 'development';
+
+    logger.info('Server started', {
+        port,
+        environment: env,
+        nodeVersion: process.version,
+        message: `Nexabudget gocardless integrator listening on port ${port}`,
+    });
 });
