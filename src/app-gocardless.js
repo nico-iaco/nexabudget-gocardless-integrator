@@ -34,14 +34,14 @@ app.post(
     handleError(async (req, res) => {
         const {institutionId, localAccountId} = req.body;
 
-        req.logger.info('Creating web token', {institutionId, localAccountId});
+        req.logger.info(`Creating web token for account ${localAccountId}`);
 
         const {link, requisitionId} = await goCardlessService.createRequisition({
             institutionId,
             localAccountId,
         });
 
-        req.logger.info('Web token created successfully', {requisitionId});
+        req.logger.info(`Web token created successfully for account ${localAccountId}`);
 
         res.send({
             status: 'ok',
@@ -58,16 +58,13 @@ app.post(
     handleError(async (req, res) => {
         const {requisitionId} = req.body;
 
-        req.logger.info('Fetching accounts for requisition', {requisitionId});
+        req.logger.info(`Fetching accounts for requisition ${requisitionId}`);
 
         try {
             const {requisition, accounts} =
                 await goCardlessService.getRequisitionWithAccounts(requisitionId);
 
-            req.logger.info('Accounts fetched successfully', {
-                requisitionId,
-                accountCount: accounts.length
-            });
+            req.logger.info(`${accounts.length} Accounts fetched successfully for requisition ${requisitionId}`);
 
             res.send({
                 status: 'ok',
@@ -105,7 +102,7 @@ app.post(
     handleError(async (req, res) => {
         let {country, showDemo = false} = req.body;
 
-        req.logger.info('Fetching banks', {country, showDemo});
+        req.logger.info(`Fetching banks for country ${country} ${showDemo ? '(showing demo banks)' : ''}`);
 
         await goCardlessService.setToken();
         const data = await goCardlessService.getInstitutions(country);
@@ -132,11 +129,11 @@ app.post(
     handleError(async (req, res) => {
         let {requisitionId} = req.body;
 
-        req.logger.info('Removing account', {requisitionId});
+        req.logger.info(`Removing account with requisition ID ${requisitionId}`);
 
         const data = await goCardlessService.deleteRequisition(requisitionId);
         if (data.summary === 'Requisition deleted') {
-            req.logger.info('Account removed successfully', {requisitionId});
+            req.logger.info(`Account removed successfully for requisition ${requisitionId}`);
             res.send({
                 status: 'ok',
                 data,
@@ -165,13 +162,7 @@ app.post(
             includeBalance = true,
         } = req.body;
 
-        req.logger.info('Fetching transactions', {
-            requisitionId,
-            accountId,
-            startDate,
-            endDate,
-            includeBalance
-        });
+        req.logger.info(`Fetching transactions for account ${accountId} under requisition ${requisitionId} from ${startDate} to ${endDate} (includeBalance: ${includeBalance})`);
 
         try {
             if (includeBalance) {
@@ -187,13 +178,7 @@ app.post(
                     endDate,
                 );
 
-                req.logger.info('Transactions fetched successfully', {
-                    requisitionId,
-                    accountId,
-                    bookedCount: booked.length,
-                    pendingCount: pending.length,
-                    totalCount: all.length,
-                });
+                req.logger.info(`Transactions and balance fetched successfully for account ${accountId} under requisition ${requisitionId} from ${startDate} to ${endDate} (includeBalance: ${includeBalance})`);
 
                 res.send({
                     status: 'ok',
@@ -219,13 +204,7 @@ app.post(
                     endDate,
                 );
 
-                req.logger.info('Transactions fetched successfully', {
-                    requisitionId,
-                    accountId,
-                    bookedCount: booked.length,
-                    pendingCount: pending.length,
-                    totalCount: all.length,
-                });
+                req.logger.info(`Transactions fetched successfully for account ${accountId} under requisition ${requisitionId} from ${startDate} to ${endDate} (includeBalance: ${includeBalance})`);
 
                 res.send({
                     status: 'ok',
