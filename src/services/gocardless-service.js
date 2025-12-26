@@ -2,7 +2,7 @@ import jwt from 'jws';
 import * as nordigenNode from 'nordigen-node';
 import {v4 as uuidv4} from 'uuid';
 
-import {BankFactory, isSpecialContinuousAccessBank} from '../bank-factory';
+import {BankFactory, isSpecialContinuousAccessBank} from '../bank-factory.js';
 import {
     AccessDeniedError,
     AccountNotLinkedToRequisition,
@@ -15,7 +15,7 @@ import {
     ResourceSuspended,
     ServiceError,
     UnknownError,
-} from '../errors';
+} from '../errors.js';
 import {createContextLogger} from "../util/logger.js";
 
 const GoCardlessClient = nordigenNode.default;
