@@ -1,4 +1,4 @@
-export const printIban = (account) => {
+export const printIban = account => {
   if (account.iban) {
     return '(XXX ' + account.iban.slice(-4) + ')';
   } else {
@@ -7,8 +7,8 @@ export const printIban = (account) => {
 };
 
 const compareDates = (
-  /** @type {string | number | Date | undefined} */ a,
-  /** @type {string | number | Date | undefined} */ b,
+    /** @type {string | number | Date | undefined} */ a,
+    /** @type {string | number | Date | undefined} */ b,
 ) => {
   if (a == null && b == null) {
     return 0;
@@ -32,14 +32,14 @@ const compareFunctions = [
 ];
 
 export const sortByBookingDateOrValueDate = (transactions = []) =>
-  transactions.sort((a, b) => {
-    for (const sortFunction of compareFunctions) {
-      const result = sortFunction(b, a);
-      if (result !== 0) {
-        return result;
+    transactions.sort((a, b) => {
+      for (const sortFunction of compareFunctions) {
+        const result = sortFunction(b, a);
+        if (result !== 0) {
+          return result;
+        }
       }
-    }
-    return 0;
-  });
+      return 0;
+    });
 
-export const amountToInteger = (n) => Math.round(n * 100);
+export const amountToInteger = n => Math.round(n * 100);

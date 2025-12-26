@@ -1,15 +1,15 @@
 type RequisitionStatus =
-  | 'CR'
-  | 'ID'
-  | 'LN'
-  | 'RJ'
-  | 'ER'
-  | 'SU'
-  | 'EX'
-  | 'GC'
-  | 'UA'
-  | 'GA'
-  | 'SA';
+    | 'CR'
+    | 'ID'
+    | 'LN'
+    | 'RJ'
+    | 'ER'
+    | 'SU'
+    | 'EX'
+    | 'GC'
+    | 'UA'
+    | 'GA'
+    | 'SA';
 
 export type Requisition = {
   /**
@@ -207,12 +207,12 @@ export type GoCardlessAccountMetadata = {
    * SUSPENDED: Account has been suspended (more than 10 consecutive failed attempts to access the account)
    */
   status:
-    | 'DISCOVERED'
-    | 'PROCESSING'
-    | 'ERROR'
-    | 'EXPIRED'
-    | 'READY'
-    | 'SUSPENDED';
+      | 'DISCOVERED'
+      | 'PROCESSING'
+      | 'ERROR'
+      | 'EXPIRED'
+      | 'READY'
+      | 'SUSPENDED';
   /**
    * Name of the owner of the GoCardless account metadata
    */
@@ -275,13 +275,13 @@ export type Balance = {
    * The type of balance
    */
   balanceType:
-    | 'closingBooked'
-    | 'expected'
-    | 'forwardAvailable'
-    | 'interimAvailable'
-    | 'interimBooked'
-    | 'nonInvoiced'
-    | 'openingBooked';
+      | 'closingBooked'
+      | 'expected'
+      | 'forwardAvailable'
+      | 'interimAvailable'
+      | 'interimBooked'
+      | 'nonInvoiced'
+      | 'openingBooked';
   /**
    * A flag indicating if the credit limit of the corresponding account is included in the calculation of the balance (if applicable)
    */
@@ -363,10 +363,10 @@ export type Transaction = {
    * Account reference, conditional
    */
   creditorAccount?:
-    | string
-    | {
-        iban?: string;
-      };
+      | string
+      | {
+    iban?: string;
+  };
 
   /**
    * BICFI
