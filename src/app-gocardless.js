@@ -12,6 +12,7 @@ import {
 import {handleError} from './util/handle-error.js';
 import {sha256String} from './util/hash.js';
 import logger, {requestLogger} from './util/logger.js';
+import {mapRequisitionStatus} from './util/requisition-status.js';
 
 const app = express();
 
@@ -82,14 +83,22 @@ app.post(
             });
         } catch (error) {
             if (error instanceof RequisitionNotLinked) {
+                const rawStatus = error.details.requisitionStatus;
+                const mapped = mapRequisitionStatus(rawStatus);
+
                 req.logger.warn('Requisition not linked', {
                     requisitionId,
-                    requisitionStatus: error.details.requisitionStatus
+                    requisitionStatus: rawStatus,
+                    mappedStatus: mapped.status,
+                    renewable: mapped.renewable,
                 });
 
+                const {status: linkedStatus, requisitionStatus: _rs, ...mappedRest} = mapped;
                 res.send({
                     status: 'ok',
-                    requisitionStatus: error.details.requisitionStatus,
+                    requisitionStatus: rawStatus,
+                    linkedStatus,
+                    ...mappedRest,
                 });
             } else {
                 throw error;
@@ -246,13 +255,9 @@ app.post(
 
             switch (true) {
                 case error instanceof RequisitionNotLinked:
-                    sendErrorResponse({
-                        error_type: 'ITEM_ERROR',
-                        error_code: 'ITEM_LOGIN_REQUIRED',
-                        status: 'expired',
-                        reason:
-                            'Access to account has expired as set in End User Agreement',
-                    });
+                    sendErrorResponse(
+                        mapRequisitionStatus(error.details.requisitionStatus),
+                    );
                     break;
                 case error instanceof AccountNotLinkedToRequisition:
                     sendErrorResponse({

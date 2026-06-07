@@ -38,6 +38,45 @@ const getGocardlessClient = () => {
     return clients.get(hash);
 };
 
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Retries `fn` up to `retries` additional times when GoCardless responds with
+ * a transient error (429 RateLimitError or 503 ServiceError).
+ * Respects the `retry-after` response header when present.
+ * Non-retryable errors propagate immediately.
+ *
+ * @template T
+ * @param {() => Promise<T>} fn
+ * @param {{ retries?: number, _delayFn?: (ms: number) => Promise<void> }} [opts]
+ * @returns {Promise<T>}
+ */
+const withGoCardlessRetry = async (fn, {retries = 2, _delayFn = sleep} = {}) => {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            return await fn();
+        } catch (error) {
+            const isTransient =
+                error instanceof RateLimitError || error instanceof ServiceError;
+            if (!isTransient || attempt === retries) throw error;
+
+            const retryAfterHeader =
+                error.details?.response?.headers?.['retry-after'];
+            const delayMs = retryAfterHeader
+                ? parseInt(retryAfterHeader, 10) * 1000
+                : Math.pow(2, attempt + 1) * 1000; // 2 s, 4 s
+
+            logger.warn('GoCardless transient error — retrying', {
+                attempt: attempt + 1,
+                maxRetries: retries,
+                delayMs,
+                error: error.message,
+            });
+            await _delayFn(delayMs);
+        }
+    }
+};
+
 export const handleGoCardlessError = (error) => {
     const status = error?.response?.status;
 
@@ -353,25 +392,31 @@ export const goCardlessService = {
             redirectImmediate: false,
             accountSelection,
         };
-        try {
-            response = await client.initSession(body);
-        } catch {
-            try {
-                console.log('Failed to link using:');
-                console.log(body);
-                console.log(
-                    'Falling back to accessValidForDays = 90 ' +
-                    'and maxHistoricalDays = 89',
-                );
+        const callInitSession = async (sessionBody) =>
+            await withGoCardlessRetry(async () => {
+                let res;
+                try {
+                    res = await client.initSession(sessionBody);
+                } catch (error) {
+                    handleGoCardlessError(error);
+                }
+                return res;
+            });
 
-                response = await client.initSession({
-                    ...body,
-                    accessValidForDays: 90,
-                    maxHistoricalDays: 89,
-                });
-            } catch (error) {
-                handleGoCardlessError(error);
-            }
+        try {
+            response = await callInitSession(body);
+        } catch (firstError) {
+            logger.warn('Failed to initSession with institution defaults, falling back to accessValidForDays=90/maxHistoricalDays=89', {
+                institutionId,
+                originalAccessValidForDays: body.accessValidForDays,
+                originalMaxHistoricalDays: body.maxHistoricalDays,
+                error: firstError.message,
+            });
+            response = await callInitSession({
+                ...body,
+                accessValidForDays: 90,
+                maxHistoricalDays: 89,
+            });
         }
 
         const {link, id: requisitionId} = response;
@@ -398,14 +443,15 @@ export const goCardlessService = {
     deleteRequisition: async requisitionId => {
         await goCardlessService.getRequisition(requisitionId);
 
-        let response;
-        try {
-            response = client.deleteRequisition(requisitionId);
-        } catch (error) {
-            handleGoCardlessError(error);
-        }
-
-        return response;
+        return await withGoCardlessRetry(async () => {
+            let response;
+            try {
+                response = await client.deleteRequisition(requisitionId);
+            } catch (error) {
+                handleGoCardlessError(error);
+            }
+            return response;
+        });
     },
 
     /**
@@ -425,14 +471,15 @@ export const goCardlessService = {
     getRequisition: async requisitionId => {
         await goCardlessService.setToken();
 
-        let response;
-        try {
-            response = client.getRequisitionById(requisitionId);
-        } catch (error) {
-            handleGoCardlessError(error);
-        }
-
-        return response;
+        return await withGoCardlessRetry(async () => {
+            let response;
+            try {
+                response = await client.getRequisitionById(requisitionId);
+            } catch (error) {
+                handleGoCardlessError(error);
+            }
+            return response;
+        });
     },
 
     /**

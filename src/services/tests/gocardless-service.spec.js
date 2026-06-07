@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import {vi} from 'vitest';
 import {
   AccessDeniedError,
   AccountNotLinkedToRequisition,
@@ -51,27 +51,27 @@ describe('goCardlessService', () => {
   let setTokenSpy;
 
   beforeEach(() => {
-    getInstitutionsSpy = jest.spyOn(client, 'getInstitutions');
-    getInstitutionSpy = jest.spyOn(client, 'getInstitutionById');
-    getRequisitionsSpy = jest.spyOn(client, 'getRequisitionById');
-    deleteRequisitionsSpy = jest.spyOn(client, 'deleteRequisition');
-    createRequisitionSpy = jest.spyOn(client, 'initSession');
-    getBalancesSpy = jest.spyOn(client, 'getBalances');
-    getTransactionsSpy = jest.spyOn(client, 'getTransactions');
-    getDetailsSpy = jest.spyOn(client, 'getDetails');
-    getMetadataSpy = jest.spyOn(client, 'getMetadata');
-    setTokenSpy = jest.spyOn(goCardlessService, 'setToken');
+    getInstitutionsSpy = vi.spyOn(client, 'getInstitutions');
+    getInstitutionSpy = vi.spyOn(client, 'getInstitutionById');
+    getRequisitionsSpy = vi.spyOn(client, 'getRequisitionById');
+    deleteRequisitionsSpy = vi.spyOn(client, 'deleteRequisition');
+    createRequisitionSpy = vi.spyOn(client, 'initSession');
+    getBalancesSpy = vi.spyOn(client, 'getBalances');
+    getTransactionsSpy = vi.spyOn(client, 'getTransactions');
+    getDetailsSpy = vi.spyOn(client, 'getDetails');
+    getMetadataSpy = vi.spyOn(client, 'getMetadata');
+    setTokenSpy = vi.spyOn(goCardlessService, 'setToken');
   });
 
   afterEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   describe('#getLinkedRequisition', () => {
     it('returns requisition', async () => {
       setTokenSpy.mockResolvedValue();
 
-      jest
+      vi
         .spyOn(goCardlessService, 'getRequisition')
         .mockResolvedValue(mockRequisition);
 
@@ -83,7 +83,7 @@ describe('goCardlessService', () => {
     it('throws RequisitionNotLinked error if requisition status is different than LN', async () => {
       setTokenSpy.mockResolvedValue();
 
-      jest
+      vi
         .spyOn(goCardlessService, 'getRequisition')
         .mockResolvedValue({ ...mockRequisition, status: 'ER' });
 
@@ -95,19 +95,19 @@ describe('goCardlessService', () => {
 
   describe('#getRequisitionWithAccounts', () => {
     it('returns combined data', async () => {
-      jest
+      vi
         .spyOn(goCardlessService, 'getRequisition')
         .mockResolvedValue(mockRequisitionWithExampleAccounts);
-      jest
+      vi
         .spyOn(goCardlessService, 'getDetailedAccount')
         .mockResolvedValueOnce(mockDetailedAccountExample1);
-      jest
+      vi
         .spyOn(goCardlessService, 'getDetailedAccount')
         .mockResolvedValueOnce(mockDetailedAccountExample2);
-      jest
+      vi
         .spyOn(goCardlessService, 'getInstitution')
         .mockResolvedValue(mockInstitution);
-      jest
+      vi
         .spyOn(goCardlessService, 'extendAccountsAboutInstitutions')
         .mockResolvedValue([
           {
@@ -146,16 +146,16 @@ describe('goCardlessService', () => {
   describe('#getTransactionsWithBalance', () => {
     const requisitionId = mockRequisition.id;
     it('returns transaction with starting balance', async () => {
-      jest
+      vi
         .spyOn(goCardlessService, 'getLinkedRequisition')
         .mockResolvedValue(mockRequisition);
-      jest
+      vi
         .spyOn(goCardlessService, 'getAccountMetadata')
         .mockResolvedValue(mockAccountMetaData);
-      jest
+      vi
         .spyOn(goCardlessService, 'getTransactions')
         .mockResolvedValue(mockTransactions);
-      jest
+      vi
         .spyOn(goCardlessService, 'getBalances')
         .mockResolvedValue(mockedBalances);
 
@@ -216,7 +216,7 @@ describe('goCardlessService', () => {
     });
 
     it('throws AccountNotLinkedToRequisition error if requisition accounts not includes requested account', async () => {
-      jest
+      vi
         .spyOn(goCardlessService, 'getLinkedRequisition')
         .mockResolvedValue(mockRequisition);
 
@@ -471,6 +471,149 @@ describe('goCardlessService', () => {
       );
       expect(getBalancesSpy).toBeCalledTimes(1);
     });
+  });
+});
+
+describe('#getLinkedRequisition — status granularity', () => {
+  const requisitionId = mockRequisition.id;
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const setupWithStatus = (status) => {
+    vi.spyOn(goCardlessService, 'getRequisition').mockResolvedValue({
+      ...mockRequisition,
+      status,
+    });
+  };
+
+  it.each(['CR', 'GC', 'UA', 'SA', 'GA'])(
+    'throws RequisitionNotLinked with status %s (pending/auth-in-progress)',
+    async (status) => {
+      setupWithStatus(status);
+      await expect(() =>
+        goCardlessService.getLinkedRequisition(requisitionId),
+      ).rejects.toMatchObject({
+        details: {requisitionStatus: status},
+      });
+    },
+  );
+
+  it('throws RequisitionNotLinked with status EX (expired)', async () => {
+    setupWithStatus('EX');
+    await expect(() =>
+      goCardlessService.getLinkedRequisition(requisitionId),
+    ).rejects.toMatchObject({details: {requisitionStatus: 'EX'}});
+  });
+
+  it('throws RequisitionNotLinked with status RJ (rejected)', async () => {
+    setupWithStatus('RJ');
+    await expect(() =>
+      goCardlessService.getLinkedRequisition(requisitionId),
+    ).rejects.toMatchObject({details: {requisitionStatus: 'RJ'}});
+  });
+
+  it('throws RequisitionNotLinked with status SU (suspended)', async () => {
+    setupWithStatus('SU');
+    await expect(() =>
+      goCardlessService.getLinkedRequisition(requisitionId),
+    ).rejects.toMatchObject({details: {requisitionStatus: 'SU'}});
+  });
+});
+
+describe('#getRequisition — error propagation (await fix)', () => {
+  const requisitionId = 'some-requisition-id';
+
+  beforeEach(() => {
+    vi.spyOn(goCardlessService, 'setToken').mockResolvedValue();
+  });
+
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it('propagates RateLimitError thrown by client after all retries', async () => {
+    // Patch withGoCardlessRetry's internal _delayFn to skip real sleep.
+    // We do this by intercepting goCardlessService.getRequisition via the
+    // exported `client` seam: spy on getRequisitionById to always reject with
+    // a 429, then call getRequisition via a wrapper that overrides _delayFn.
+    // Since _delayFn is not directly mockable from outside, we verify the
+    // outcome: RateLimitError is propagated after retries by using a very
+    // short delay (pass via the internal test helper below).
+    //
+    // Simpler approach: just run the real function with mock that always
+    // rejects 429. withGoCardlessRetry will retry with 2s+4s sleep. Since we
+    // want to avoid 6s real wait, we import and call withGoCardlessRetry
+    // indirectly. For correctness, we accept a longer timeout on this test.
+    //
+    // In practice, the NotFoundError test below already proves the await fix.
+    // This test verifies the RateLimitError retry chain exhausts and re-throws.
+    vi.spyOn(client, 'getRequisitionById').mockRejectedValue(
+      Object.assign(new Error('Too Many Requests'), {response: {status: 429}}),
+    );
+
+    await expect(() =>
+      goCardlessService.getRequisition(requisitionId),
+    ).rejects.toThrow(RateLimitError);
+  }, 15_000 /* ms: retries take up to 2s+4s=6s real sleep */);
+
+  it('retries on RateLimitError before eventually throwing (call count)', async () => {
+    const spy = vi
+      .spyOn(client, 'getRequisitionById')
+      .mockRejectedValue(
+        Object.assign(new Error('Too Many Requests'), {response: {status: 429}}),
+      );
+
+    try {
+      await goCardlessService.getRequisition(requisitionId);
+    } catch {
+      // expected
+    }
+    // retries = 2, so getRequisitionById is called 3 times total
+    expect(spy).toHaveBeenCalledTimes(3);
+  }, 15_000);
+
+  it('propagates NotFoundError thrown by client', async () => {
+    vi.spyOn(client, 'getRequisitionById').mockRejectedValue(
+      Object.assign(new Error('Not Found'), {response: {status: 404}}),
+    );
+
+    await expect(() =>
+      goCardlessService.getRequisition(requisitionId),
+    ).rejects.toThrow(NotFoundError);
+  });
+});
+
+describe('#deleteRequisition — error propagation (await fix)', () => {
+  const requisitionId = 'some-requisition-id';
+
+  beforeEach(() => {
+    vi.spyOn(goCardlessService, 'setToken').mockResolvedValue();
+    vi.spyOn(client, 'getRequisitionById').mockResolvedValue(mockRequisition);
+  });
+
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it('propagates NotFoundError when deleteRequisition fails', async () => {
+    vi.spyOn(client, 'deleteRequisition').mockRejectedValue(
+      Object.assign(new Error('Not Found'), {response: {status: 404}}),
+    );
+
+    await expect(() =>
+      goCardlessService.deleteRequisition(requisitionId),
+    ).rejects.toThrow(NotFoundError);
+  });
+
+  it('returns the deletion summary on success', async () => {
+    vi.spyOn(client, 'deleteRequisition').mockResolvedValue(
+      mockDeleteRequisition,
+    );
+
+    const result = await goCardlessService.deleteRequisition(requisitionId);
+    expect(result).toEqual(mockDeleteRequisition);
   });
 });
 
