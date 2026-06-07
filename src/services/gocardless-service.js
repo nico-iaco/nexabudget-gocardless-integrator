@@ -213,7 +213,7 @@ export const goCardlessService = {
             throw new AccountNotLinkedToRequisition(accountId, requisitionId);
         }
 
-        const [normalizedTransactions, accountBalance] = await Promise.all([
+        const [normalizedTransactions, balanceResult] = await Promise.allSettled([
             goCardlessService.getNormalizedTransactions(
                 requisitionId,
                 accountId,
@@ -223,17 +223,33 @@ export const goCardlessService = {
             goCardlessService.getBalances(accountId),
         ]);
 
-        const transactions = normalizedTransactions.transactions;
+        if (normalizedTransactions.status === 'rejected') {
+            throw normalizedTransactions.reason;
+        }
 
+        const transactions = normalizedTransactions.value.transactions;
         const bank = BankFactory(institution_id);
+
+        if (balanceResult.status === 'rejected') {
+            logger.warn('Balance fetch failed, returning transactions without balance', {
+                accountId,
+                error: balanceResult.reason?.message,
+            });
+            return {
+                balances: [],
+                institutionId: institution_id,
+                startingBalance: null,
+                transactions,
+            };
+        }
 
         const startingBalance = bank.calculateStartingBalance(
             transactions.booked,
-            accountBalance.balances,
+            balanceResult.value.balances,
         );
 
         return {
-            balances: accountBalance.balances,
+            balances: balanceResult.value.balances,
             institutionId: institution_id,
             startingBalance,
             transactions,

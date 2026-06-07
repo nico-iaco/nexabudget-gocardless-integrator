@@ -5,6 +5,7 @@ import {goCardlessService} from './services/gocardless-service.js';
 import {
     AccountNotLinkedToRequisition,
     GenericGoCardlessError,
+    GoCardlessClientError,
     RateLimitError,
     RequisitionNotLinked,
 } from './errors.js';
@@ -269,6 +270,7 @@ app.post(
                         reason: 'Rate limit exceeded',
                     });
                     break;
+                case error instanceof GoCardlessClientError:
                 case error instanceof GenericGoCardlessError:
                     req.logger.error('GoCardless Error', {
                         message: error.message || 'Unknown error',
